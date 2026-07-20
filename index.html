@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Workspace Environment</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { display: flex; height: 100vh; background: #0d1117; color: #c9d1d9; overflow: hidden; }
+    
+    /* Left Panel: Instructions & Notepad */
+    #left-panel {
+      width: 320px;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      gap: 20px;
+    }
+    
+    .panel-section { display: flex; flex-direction: column; gap: 8px; }
+    .panel-section.flex-grow { flex: 1; }
+    
+    label { font-size: 11px; font-weight: bold; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    textarea {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 12px;
+      border-radius: 6px;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #58a6ff; }
+
+    #system-instructions { height: 250px; font-size: 13px; line-height: 1.5; border-color: #58a6ff; }
+    #notepad { height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.4; }
+
+    /* Center Panel: Chat Interface */
+    #chat-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0d1117;
+    }
+
+    #chat-history {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .msg { padding: 12px 16px; border-radius: 8px; max-width: 75%; line-height: 1.5; font-size: 14px; }
+    .msg.user { background: #1f6feb; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+    .msg.assistant { background: #21262d; border: 1px solid #30363d; align-self: flex-start; border-bottom-left-radius: 2px; }
+
+    #chat-input-area {
+      padding: 20px;
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      display: flex;
+      gap: 12px;
+    }
+
+    #user-input { flex: 1; height: 44px; padding: 12px; border-radius: 6px; }
+    button { background: #238636; color: white; border: none; padding: 0 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #2ea043; }
+
+    /* Right Panel: Code Execution Screen */
+    #code-screen {
+      width: 0;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      background: #ffffff;
+      border-left: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #code-screen.active { width: 45%; opacity: 1; }
+    
+    #screen-header {
+      background: #f6f8fa;
+      color: #24292f;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #d0d7de;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .close-btn { background: transparent; color: #57606a; border: none; padding: 4px 8px; font-size: 16px; cursor: pointer; }
+    .close-btn:hover { background: #e9ecef; color: #24292f; }
+
+    #live-frame { flex: 1; border: none; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+
+  <div id="left-panel">
+    <div class="panel-section">
+      <label>AI Instructions</label>
+      <textarea id="system-instructions" placeholder="Define rules for file editing, notepad logging, and coding behavior..."></textarea>
+    </div>
+
+    <div class="panel-section flex-grow">
+      <label>Error Notepad</label>
+      <textarea id="notepad" placeholder="AI debugging logs and stack traces will appear here..."></textarea>
+    </div>
+  </div>
+
+  <div id="chat-panel">
+    <div id="chat-history">
+      <div class="msg assistant">System initialized. Waiting for instructions.</div>
+    </div>
+    <div id="chat-input-area">
+      <textarea id="user-input" placeholder="Type a message... (Type 'code' to test the slide-out screen)"></textarea>
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+
+  <div id="code-screen">
+    <div id="screen-header">
+      <span id="file-title">index.html</span>
+      <button class="close-btn" onclick="closeScreen()">✕</button>
+    </div>
+    <iframe id="live-frame"></iframe>
+  </div>
+
+  <script>
+    const chatHistory = document.getElementById('chat-history');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const codeScreen = document.getElementById('code-screen');
+    const liveFrame = document.getElementById('live-frame');
+
+    sendBtn.addEventListener('click', handleSend);
+    userInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    });
+
+    function handleSend() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      appendMessage('user', text);
+      userInput.value = '';
+
+      // Mocking the AI response for design testing
+      setTimeout(() => {
+        if (text.toLowerCase().includes('code')) {
+          appendMessage('assistant', 'Generating workspace UI...');
+          activateCodeScreen("<h1>Hello World!</h1><p>The code screen is working.</p>");
+        } else {
+          appendMessage('assistant', 'I received your message. Tell me to "code" to test the right panel.');
+        }
+      }, 500);
+    }
+
+    function appendMessage(role, text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `msg ${role}`;
+      msgDiv.textContent = text;
+      chatHistory.appendChild(msgDiv);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    function activateCodeScreen(htmlContent) {
+      codeScreen.classList.add('active');
+      const doc = liveFrame.contentWindow.document;
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+    }
+
+    function closeScreen() {
+      codeScreen.classList.remove('active');
+    }
+  </script>
+</body>
+</html>
